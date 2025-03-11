@@ -15,7 +15,8 @@ Sy = jmat(1, 'y')
 Sz = jmat(1, 'z')
 
 # Magnetic field (example: 1 mT along z-axis)
-B = np.array([0, 0, 1e-3])  # in Tesla
+# B = np.array([0, 0, 1e-3])  # in Tesla
+B = np.array([0, 0,0])  # in Tesla
 
 # Hamiltonian (in units of Hz)
 H = D * Sz**2 + E * (Sx**2 - Sy**2) + (g * mu_B / h) * (B[0] * Sx + B[1] * Sy + B[2] * Sz)
@@ -61,29 +62,29 @@ def simulate_hahn_echo(B, tau):
     """
     Simulates the Hahn echo sequence for a given magnetic field B and free evolution time tau.
     """
+    # Rebuild Hamiltonian with the input B (critical for variable B)
+    H_local = D * Sz**2 + E * (Sx**2 - Sy**2) + (g * mu_B / h) * (B[0] * Sx + B[1] * Sy + B[2] * Sz)
+    
     # Define the initial state (m_s = 0)
     psi0 = eigenstates[0]  # Ground state (m_s = 0)
-
-    # Define the pi/2 pulse (rotates spin to superposition state)
+    
+    # Define pulse operators
     U_pi2 = (-1j * np.pi/2 * Sx).expm()
-
-    # Define the pi pulse (flips spin states)
     U_pi = (-1j * np.pi * Sx).expm()
-
-    # Free evolution under the Hamiltonian
-    U_free = (-1j * H * tau).expm()
-
-    # Apply the Hahn echo sequence: pi/2 - tau/2 - pi - tau/2 - pi/2
-    psi = U_pi2 * psi0  # Initial pi/2 pulse
-    psi = U_free * psi  # Free evolution for tau/2
-    psi = U_pi * psi    # Pi pulse
-    psi = U_free * psi  # Free evolution for tau/2
-    psi = U_pi2 * psi   # Final pi/2 pulse
-
-    # Measure the population in m_s = 0
-    pop_m0 = abs((eigenstates[0].dag() * psi).full()[0][0])**2
+    
+    # Free evolution under the updated Hamiltonian
+    U_free = (-1j * H_local * tau).expm()
+    
+    # Apply Hahn echo sequence
+    psi = U_pi2 * psi0
+    psi = U_free * psi
+    psi = U_pi * psi
+    psi = U_free * psi
+    psi = U_pi2 * psi
+    
+    # Measure population in m_s = 0 (no .full()[0][0] needed)
+    pop_m0 = abs((eigenstates[0].dag() * psi))**2
     return pop_m0
-
 # Test Hahn echo for different free evolution times
 tau_values = np.linspace(0, 2e-6, 100)  # Free evolution times from 0 to 2 microseconds
 echo_signal = [simulate_hahn_echo(B, tau) for tau in tau_values]
@@ -97,3 +98,9 @@ plt.title("Simulated Hahn Echo Signal")
 plt.grid()
 plt.legend()
 plt.show()
+
+
+""" The Hamiltonian is now constructed in units of Hz by dividing the Zeeman term by 
+h
+h:
+"""
